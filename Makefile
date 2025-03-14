@@ -3,7 +3,7 @@ CC=gcc
 CXX=g++
 RM=rm -f
 #CPPFLAGS=-O3 -W -Wall
-CPPFLAGS=-O3 -W -Wall
+CPPFLAGS=-O3 -W -Wall -Wno-unused-parameter -I D:\Garage\lib\boost_1_87_0
 LDFLAGS=-g
 LDLIBS=-L.
 

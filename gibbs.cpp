@@ -140,6 +140,8 @@ void Copy3DVector(std::vector<double> in_vec, int f_w, int f_h, int s_w, int s_h
     }
 }
 
+// .at() 是 C++ 标准库中 std::vector 类的一个成员函数，用于访问向量中的元素。与使用下标运算符 [] 访问元素不同，.at() 会进行边界检查，如果访问的索引超出了向量的范围，它会抛出一个 std::out_of_range 异常。
+
 void GibbsSampling(std::vector<double> datacost, std::vector<double> smoothcost,
         std::vector<double> &totalcost, std::vector<double> &label,
         int gibbs_iter, int width, int height, int num_lbl,
@@ -147,7 +149,9 @@ void GibbsSampling(std::vector<double> datacost, std::vector<double> smoothcost,
 {
     std::vector<double> p(num_lbl, 0);
     std::vector<double> p_sum(num_lbl, 0);
+    // this means partial sum
     double sum_neighbors;
+    // related to smooth cost, temporary variable
     int north_label;
     int west_label;
     int east_label;
@@ -226,6 +230,7 @@ void GibbsSampling(std::vector<double> datacost, std::vector<double> smoothcost,
                 }
 
                 adj_uni_rand = curr_uni_rand * psum;
+                // normalize the uni_rand instead of p values
                 //adj_uni_rand = 0.5 * psum;
                 //adj_uni_rand = 0.000000001;
 
@@ -713,7 +718,7 @@ int main(int argc, char *argv[])
     //int height = 125;
     //int num_lbl = 2;
 
-    if (argc != 9)
+    if (argc != 12)
     {
         cerr << "Not enough arguments!" << endl;
         return 0;
