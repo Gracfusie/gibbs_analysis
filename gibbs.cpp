@@ -140,6 +140,8 @@ void Copy3DVector(std::vector<double> in_vec, int f_w, int f_h, int s_w, int s_h
     }
 }
 
+// .at() 是 C++ 标准库中 std::vector 类的一个成员函数，用于访问向量中的元素。与使用下标运算符 [] 访问元素不同，.at() 会进行边界检查，如果访问的索引超出了向量的范围，它会抛出一个 std::out_of_range 异常。
+
 void GibbsSampling(std::vector<double> datacost, std::vector<double> smoothcost,
         std::vector<double> &totalcost, std::vector<double> &label,
         int gibbs_iter, int width, int height, int num_lbl,
@@ -147,7 +149,9 @@ void GibbsSampling(std::vector<double> datacost, std::vector<double> smoothcost,
 {
     std::vector<double> p(num_lbl, 0);
     std::vector<double> p_sum(num_lbl, 0);
+    // this means partial sum
     double sum_neighbors;
+    // related to smooth cost, temporary variable
     int north_label;
     int west_label;
     int east_label;
@@ -226,6 +230,7 @@ void GibbsSampling(std::vector<double> datacost, std::vector<double> smoothcost,
                 }
 
                 adj_uni_rand = curr_uni_rand * psum;
+                // normalize the uni_rand instead of p values
                 //adj_uni_rand = 0.5 * psum;
                 //adj_uni_rand = 0.000000001;
 
@@ -713,7 +718,7 @@ int main(int argc, char *argv[])
     //int height = 125;
     //int num_lbl = 2;
 
-    if (argc != 9)
+    if (argc != 12)
     {
         cerr << "Not enough arguments!" << endl;
         return 0;
@@ -754,6 +759,7 @@ int main(int argc, char *argv[])
 
     // store ild values in
     //matrix_double input_ild(height, vector<double>(width,0));
+    // ild means: Interaural Level Difference
     std::vector<double> input_ild (height * width, 0);
 
     double buffer;
@@ -772,349 +778,352 @@ int main(int argc, char *argv[])
     //DumpMatrix(input_ild, height, width, "output/ild.txt");
     Dump2DVector(input_ild, width, height, "output/ild.txt");
 
-    for(int gibbs_iter=(loop==1)?1:gibbs_iter_tot; gibbs_iter<=gibbs_iter_tot; gibbs_iter++) {
-    for(int run=0; run<run_num; run++){
-
-    //--------------------------------------------------------------------------
-    // Initialize cost vectors and Gaussian parameters
-    //--------------------------------------------------------------------------
-//    double mean[] = {10, -30}; // binary
-//    double vari[] = {30, 30}; // binary
-    //double mean[] = {8, -8}; // binary
-    //double vari[] = {8, 8}; // binary
-    double mean_[] = {8, -8}; // binary
-    double vari_[] = {8, 8}; // binary
-    cout << "Initial mean : [" << mean_[0] << "," << mean_[1] << "]" << endl;
-
-    std::vector<double> datacost(height * width * num_lbl, 0);
-    std::vector<double> smoothcost(num_lbl * num_lbl, 0);
-
-    //--------------------------------------------------------------------------
-    // Finding data cost
-    //--------------------------------------------------------------------------
-//    for(int h=0; h<height; h++)
-//    {
-//        for(int w=0; w<width; w++)
-//        {
-//            for(int n=0; n<num_lbl; n++)
-//            {
-//                datacost.at((h*width+w)*num_lbl+n) =
-//                    (input_ild.at(h*width+w) - mean[n]) *
-//                    (input_ild.at(h*width+w) - mean[n]) /
-//                    (2 * vari[n]);
-//            }
-//        }
-//    }
-//
-//    Dump3DVector(datacost, width, height, num_lbl, "output/datacost.txt");
-
-    //--------------------------------------------------------------------------
-    // Finding smoothness cost function
-    //--------------------------------------------------------------------------
-    for(int n=0; n<num_lbl; n++)
+    for(int gibbs_iter=(loop==1)?1:gibbs_iter_tot; gibbs_iter<=gibbs_iter_tot; gibbs_iter++) 
     {
-        for(int m=0; m<num_lbl; m++)
+        for(int run=0; run<run_num; run++)
         {
-            smoothcost.at(n*num_lbl+m) = (n-m)*(n-m);
-        }
-    }
 
-    //Dump2DVector(smoothcost, num_lbl, num_lbl, "output/smoothcost.txt");
+            //--------------------------------------------------------------------------
+            // Initialize cost vectors and Gaussian parameters
+            //--------------------------------------------------------------------------
+            //    double mean[] = {10, -30}; // binary
+            //    double vari[] = {30, 30}; // binary
+            //double mean[] = {8, -8}; // binary
+            //double vari[] = {8, 8}; // binary
+            double mean_[] = {8, -8}; // binary
+            double vari_[] = {8, 8}; // binary
+            cout << "Initial mean : [" << mean_[0] << "," << mean_[1] << "]" << endl;
 
+            std::vector<double> datacost(height * width * num_lbl, 0);
+            std::vector<double> smoothcost(num_lbl * num_lbl, 0);
 
-    //--------------------------------------------------------------------------
-    // Create local copies
-    //--------------------------------------------------------------------------
+            //--------------------------------------------------------------------------
+            // Finding data cost
+            //--------------------------------------------------------------------------
+            //    for(int h=0; h<height; h++)
+            //    {
+            //        for(int w=0; w<width; w++)
+            //        {
+            //            for(int n=0; n<num_lbl; n++)
+            //            {
+            //                datacost.at((h*width+w)*num_lbl+n) =
+            //                    (input_ild.at(h*width+w) - mean[n]) *
+            //                    (input_ild.at(h*width+w) - mean[n]) /
+            //                    (2 * vari[n]);
+            //            }
+            //        }
+            //    }
+            //
+            //    Dump3DVector(datacost, width, height, num_lbl, "output/datacost.txt");
 
-    // it is best if these values are randomized, global labels can be flexible
-    // random number generation
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    // bernoulli
-    std::bernoulli_distribution b_dis(0.5);
-
-    //std::vector<double> global_labels(height * width);
-    //std::generate(global_labels.begin(), global_labels.end(), int(d(gen));
-    //std::generate(global_labels.begin(), global_labels.end(),
-    //        [&gen, &b_dis] { return b_dis(gen);});
-    //std::generate(global_labels.begin(), global_labels.end(),
-    //         b_dis(gen));
-    //std::vector<double> global_labels(height * width, 0);
-
-    // random vs zero initialization
-    //std::vector<double> global_labels(height * width);
-    //generate(global_labels.begin(), global_labels.end());
-    std::vector<double> global_labels(height * width, 0);
-
-    //char const *LBLfileName = "input/init_labels.txt";
-    //ifstream lbl_stream(LBLfileName);
-
-    /*
-    for(int h=0; h<height; h++)
-    {
-        for(int w=0; w<width; w++)
-        {
-            lbl_stream >> buffer;
-            //input_ild[h][w] = buffer;
-            // transposed input is stored into vector
-            global_labels[h*width+w] = buffer;
-        }
-    }
-    */
-
-    //Dump2DVector(global_labels, 513, 125, "output/global_labels.txt");
-
-    int local_width;
-    int local_height;
-    local_width  = width;     // smallest power of 4 larger than 513
-    local_height = step;
-    if(HW == 0) {
-        local_height = height;
-    }
-    //int step = 1;
-    int s_w = 0;
-    int s_h = 0;
-    int diff = height - local_height;
-    int shift = (diff / step) + 1;
-    if(diff % step != 0) {
-        shift++;
-    }
-
-    std::vector<double> local_labels(local_height * local_width,0);
-    std::vector<double> local_dcosts(local_height * local_width * num_lbl,0);
-    std::vector<double> totalcost(local_height * local_width * num_lbl, 0);
-
-    double mean[num_lbl];
-    double vari[num_lbl];
-
-    for(int s = 0; s < shift; s++) {
-
-        for(int k = 0; k < num_lbl; k++) {
-            mean[k] = mean_[k];
-            vari[k] = vari_[k];
-        }
-
-        if(s == shift - 1 ) {
-            s_h = diff;
-        }
-        //s_h = 24;
-        Copy2DVector(global_labels, width, height, s_w, s_h, local_width, local_height, local_labels);
-        //Dump2DVector(local_labels, local_width, local_height, "output/local_labels.txt");
-
-        //Copy3DVector(datacost, 513, 125, 0, 0,
-        //        local_width, local_height, num_lbl, local_dcosts);
-        //Dump3DVector(local_dcosts, local_width, local_height, num_lbl,
-        //        "output/local_dcosts.txt");
-
-        //--------------------------------------------------------------------------
-        // EM
-        //--------------------------------------------------------------------------
-
-        double energy;
-        double data_e;
-        double smooth_e;
-        int   node_label;
-        int label_count[2] = {0, 0};
-        double new_mean[2] = {0, 0};
-        double new_vari[2] = {0, 0};
-
-        double dcost_cap = 15;
-        double dcost_diff = 0;
-        double dcost_diff_temp = 0;
-
-        for (int e=0; e<em_iter; e++)
-        {
-            // update datacostgit clone https://glennko@bitbucket.org/glennko/ssgibbs-matlab.git
-            for(int h=0; h<local_height; h++)
+            //--------------------------------------------------------------------------
+            // Finding smoothness cost function
+            // it seems that the smoothness cost is related to the label, and is fixed during the execution
+            //--------------------------------------------------------------------------
+            for(int n=0; n<num_lbl; n++)
             {
-                for(int w=0; w<local_width; w++)
+                for(int m=0; m<num_lbl; m++)
                 {
-                    dcost_diff = 0;
+                    smoothcost.at(n*num_lbl+m) = (n-m)*(n-m);
+                }
+            }
 
-                    for(int n=0; n<num_lbl; n++)
+            //Dump2DVector(smoothcost, num_lbl, num_lbl, "output/smoothcost.txt");
+
+
+            //--------------------------------------------------------------------------
+            // Create local copies
+            //--------------------------------------------------------------------------
+
+            // it is best if these values are randomized, global labels can be flexible
+            // random number generation
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            // bernoulli
+            std::bernoulli_distribution b_dis(0.5);
+
+            //std::vector<double> global_labels(height * width);
+            //std::generate(global_labels.begin(), global_labels.end(), int(d(gen));
+            //std::generate(global_labels.begin(), global_labels.end(),
+            //        [&gen, &b_dis] { return b_dis(gen);});
+            //std::generate(global_labels.begin(), global_labels.end(),
+            //         b_dis(gen));
+            //std::vector<double> global_labels(height * width, 0);
+
+            // random vs zero initialization
+            //std::vector<double> global_labels(height * width);
+            //generate(global_labels.begin(), global_labels.end());
+            std::vector<double> global_labels(height * width, 0);
+
+            //char const *LBLfileName = "input/init_labels.txt";
+            //ifstream lbl_stream(LBLfileName);
+
+            /*
+            for(int h=0; h<height; h++)
+            {
+                for(int w=0; w<width; w++)
+                {
+                    lbl_stream >> buffer;
+                    //input_ild[h][w] = buffer;
+                    // transposed input is stored into vector
+                    global_labels[h*width+w] = buffer;
+                }
+            }
+            */
+
+            //Dump2DVector(global_labels, 513, 125, "output/global_labels.txt");
+
+            int local_width;
+            int local_height;
+            local_width  = width;     // smallest power of 4 larger than 513
+            local_height = step;
+            if(HW == 0) {
+                local_height = height;
+            }
+            //int step = 1;
+            int s_w = 0;
+            int s_h = 0;
+            int diff = height - local_height;
+            int shift = (diff / step) + 1;
+            if(diff % step != 0) {
+                shift++;
+            }
+
+            std::vector<double> local_labels(local_height * local_width,0);
+            std::vector<double> local_dcosts(local_height * local_width * num_lbl,0);
+            std::vector<double> totalcost(local_height * local_width * num_lbl, 0);
+
+            double mean[num_lbl];
+            double vari[num_lbl];
+
+            for(int s = 0; s < shift; s++) {
+
+                for(int k = 0; k < num_lbl; k++) {
+                    mean[k] = mean_[k];
+                    vari[k] = vari_[k];
+                }
+
+                if(s == shift - 1 ) {
+                    s_h = diff;
+                }
+                //s_h = 24;
+                Copy2DVector(global_labels, width, height, s_w, s_h, local_width, local_height, local_labels);
+                //Dump2DVector(local_labels, local_width, local_height, "output/local_labels.txt");
+
+                //Copy3DVector(datacost, 513, 125, 0, 0,
+                //        local_width, local_height, num_lbl, local_dcosts);
+                //Dump3DVector(local_dcosts, local_width, local_height, num_lbl,
+                //        "output/local_dcosts.txt");
+
+                //--------------------------------------------------------------------------
+                // EM
+                //--------------------------------------------------------------------------
+
+                double energy;
+                double data_e;
+                double smooth_e;
+                int   node_label;
+                int label_count[2] = {0, 0};
+                double new_mean[2] = {0, 0};
+                double new_vari[2] = {0, 0};
+
+                double dcost_cap = 15;
+                double dcost_diff = 0;
+                double dcost_diff_temp = 0;
+
+                for (int e=0; e<em_iter; e++)
+                {
+                    // update datacostgit clone https://glennko@bitbucket.org/glennko/ssgibbs-matlab.git
+                    for(int h=0; h<local_height; h++)
                     {
-                        local_dcosts.at((h*local_width+w)*num_lbl+n) =
-                            (input_ild.at((h+s_h)*width+w) - mean[n]) *
-                            (input_ild.at((h+s_h)*width+w) - mean[n]) /
-                            (vari[n]);
+                        for(int w=0; w<local_width; w++)
+                        {
+                            dcost_diff = 0;
 
-                        // Find the maxium difference from the dcost cap to the current datacost. 
-                        // This maxium difference will be used for the hardware regulation.
-                        dcost_diff_temp = local_dcosts.at((h*local_width+w)*num_lbl+n) - dcost_cap;
-                        if(dcost_diff_temp > dcost_diff) {
-                            dcost_diff = dcost_diff_temp;
-                        }
-                        //cout << local_dcosts.at((h*local_width+w)*num_lbl+n) << " ";
-                    }
+                            for(int n=0; n<num_lbl; n++)
+                            {
+                                local_dcosts.at((h*local_width+w)*num_lbl+n) =
+                                    (input_ild.at((h+s_h)*width+w) - mean[n]) *
+                                    (input_ild.at((h+s_h)*width+w) - mean[n]) /
+                                    (vari[n]);
 
-                    // If this is the 
-                    if(HW == 1 && dcost_diff > 0) {
-                        for(int n=0; n<num_lbl; n++){
-                            local_dcosts.at((h*local_width+w)*num_lbl+n) -= dcost_diff;
-                            if(local_dcosts.at((h*local_width+w)*num_lbl+n) < 0) {
-                                local_dcosts.at((h*local_width+w)*num_lbl+n) = 0;
+                                // Find the maxium difference from the dcost cap to the current datacost. 
+                                // This maxium difference will be used for the hardware regulation.
+                                dcost_diff_temp = local_dcosts.at((h*local_width+w)*num_lbl+n) - dcost_cap;
+                                if(dcost_diff_temp > dcost_diff) {
+                                    dcost_diff = dcost_diff_temp;
+                                }
+                                //cout << local_dcosts.at((h*local_width+w)*num_lbl+n) << " ";
                             }
-                            //cout << local_dcosts.at((h*local_width+w)*num_lbl+n) << " ";
+
+                            // If this is the 
+                            if(HW == 1 && dcost_diff > 0) {
+                                for(int n=0; n<num_lbl; n++){
+                                    local_dcosts.at((h*local_width+w)*num_lbl+n) -= dcost_diff;
+                                    if(local_dcosts.at((h*local_width+w)*num_lbl+n) < 0) {
+                                        local_dcosts.at((h*local_width+w)*num_lbl+n) = 0;
+                                    }
+                                    //cout << local_dcosts.at((h*local_width+w)*num_lbl+n) << " ";
+                                }
+                            }
+
+                            //cout << endl;
+                        }
+                    }
+                    //Dump3DVector(local_dcosts, local_width, local_height, num_lbl,"output/local_dcosts.txt");
+
+                    // Gibbs sampling
+                    // p for each label must be found
+                    // p = exp(-B*E)
+                    // E = DC*lambda*SC
+
+                    if(HW == 0) {
+                        GibbsSampling(local_dcosts, smoothcost, totalcost, local_labels,
+                            gibbs_iter, local_width, local_height, num_lbl, beta, lambda, gen);
+                    } 
+                    else if (HW == 1) {
+                        GibbsSampling_c(local_dcosts, smoothcost, totalcost, local_labels,
+                            gibbs_iter, local_width, local_height, num_lbl, beta, lambda, gen);
+                    }
+                    else if (HW == 2) {
+                        GibbsSampling_cn(local_dcosts, smoothcost, totalcost, local_labels,
+                            gibbs_iter, local_width, local_height, num_lbl, beta, lambda, gen);
+                    }
+
+                    // Update Gaussian parameters (source separation only)
+                    label_count[0] = 0;
+                    label_count[1] = 0;
+                    new_mean[0] = 0;
+                    new_mean[1] = 0;
+                    new_vari[0] = 0;
+                    new_vari[1] = 0;
+
+                    for(int h=0; h<local_height; h++)
+                    {
+                        for(int w=0; w<local_width; w++)
+                        {
+                            if (local_labels.at(h*local_width+w) == 0)
+                            {
+                                new_mean[0] += input_ild[(h+s_h)*width+w];
+                                new_vari[0] += input_ild[(h+s_h)*width+w]*input_ild[(h+s_h)*width+w];
+                                label_count[0]++;
+                            }
+                            else if (local_labels.at(h*local_width+w) == 1)
+                            {
+                                new_mean[1] += input_ild[(h+s_h)*width+w];
+                                new_vari[1] += input_ild[(h+s_h)*width+w]*input_ild[(h+s_h)*width+w];
+                                label_count[1]++;
+                            }
                         }
                     }
 
-                    //cout << endl;
-                }
-            }
-            //Dump3DVector(local_dcosts, local_width, local_height, num_lbl,"output/local_dcosts.txt");
-
-            // Gibbs sampling
-            // p for each label must be found
-            // p = exp(-B*E)
-            // E = DC*lambda*SC
-
-        	if(HW == 0) {
-				GibbsSampling(local_dcosts, smoothcost, totalcost, local_labels,
-                    gibbs_iter, local_width, local_height, num_lbl, beta, lambda, gen);
-			} 
-			else if (HW == 1) {
-				GibbsSampling_c(local_dcosts, smoothcost, totalcost, local_labels,
-                    gibbs_iter, local_width, local_height, num_lbl, beta, lambda, gen);
-			}
-            else if (HW == 2) {
-                GibbsSampling_cn(local_dcosts, smoothcost, totalcost, local_labels,
-                    gibbs_iter, local_width, local_height, num_lbl, beta, lambda, gen);
-            }
-
-            // Update Gaussian parameters (source separation only)
-            label_count[0] = 0;
-            label_count[1] = 0;
-            new_mean[0] = 0;
-            new_mean[1] = 0;
-            new_vari[0] = 0;
-            new_vari[1] = 0;
-
-            for(int h=0; h<local_height; h++)
-            {
-                for(int w=0; w<local_width; w++)
-                {
-                    if (local_labels.at(h*local_width+w) == 0)
+                    for (int n=0; n<num_lbl; n++)
                     {
-                        new_mean[0] += input_ild[(h+s_h)*width+w];
-                        new_vari[0] += input_ild[(h+s_h)*width+w]*input_ild[(h+s_h)*width+w];
-                        label_count[0]++;
+                        new_mean[n] = new_mean[n] / label_count[n];
+                        new_vari[n] = (new_vari[n] / label_count[n])
+                            - (new_mean[n] * new_mean[n]);
                     }
-                    else if (local_labels.at(h*local_width+w) == 1)
+                    //cout << "Label count = [" << label_count[0] << "," << label_count[1] << "]" << endl;
+                    //cout << "New mean = [" << new_mean[0] << "," << new_mean[1] << "]" << endl;
+                    //cout << "New variance = [" << new_vari[0] << "," << new_vari[1] << "]" << endl;
+
+                    for (int n=0; n<num_lbl; n++)
                     {
-                        new_mean[1] += input_ild[(h+s_h)*width+w];
-                        new_vari[1] += input_ild[(h+s_h)*width+w]*input_ild[(h+s_h)*width+w];
-                        label_count[1]++;
+                        mean[n] = new_mean[n];
+                        vari[n] = new_vari[n];
                     }
-                }
-            }
 
-            for (int n=0; n<num_lbl; n++)
-            {
-                new_mean[n] = new_mean[n] / label_count[n];
-                new_vari[n] = (new_vari[n] / label_count[n])
-                    - (new_mean[n] * new_mean[n]);
-            }
-            //cout << "Label count = [" << label_count[0] << "," << label_count[1] << "]" << endl;
-            //cout << "New mean = [" << new_mean[0] << "," << new_mean[1] << "]" << endl;
-            //cout << "New variance = [" << new_vari[0] << "," << new_vari[1] << "]" << endl;
+                    //cout << fixed;
+                    //cout << "data_e\t\t\t" << "smooth_e\t\t\t" << "total_e\t\t\t" << endl;
 
-            for (int n=0; n<num_lbl; n++)
-            {
-                mean[n] = new_mean[n];
-                vari[n] = new_vari[n];
-            }
+                    data_e = 0;
+                    for(int h=0; h<local_height; h++)
+                    {
+                        for(int w=0; w<local_width; w++)
+                        {
+                            node_label = local_labels.at(h*local_width+w);
+                            data_e += local_dcosts.at((h*local_width*num_lbl)+(w*num_lbl)+node_label);
+                        }
+                    }
+                    //cout << "data_e = " << data_e << endl;
 
-            //cout << fixed;
-            //cout << "data_e\t\t\t" << "smooth_e\t\t\t" << "total_e\t\t\t" << endl;
-
-            data_e = 0;
-            for(int h=0; h<local_height; h++)
-            {
-                for(int w=0; w<local_width; w++)
-                {
-                    node_label = local_labels.at(h*local_width+w);
-                    data_e += local_dcosts.at((h*local_width*num_lbl)+(w*num_lbl)+node_label);
-                }
-            }
-            //cout << "data_e = " << data_e << endl;
-
-            int other_label;
-            smooth_e = 0;
-            for(int h=0; h<local_height-1; h++)
-            {
-                for(int w=0; w<local_width-1; w++)
-                {
-                    node_label  = local_labels.at(h*local_width+w);
-                    other_label = local_labels.at(h*local_width+(w+1));
+                    int other_label;
+                    smooth_e = 0;
+                    for(int h=0; h<local_height-1; h++)
+                    {
+                        for(int w=0; w<local_width-1; w++)
+                        {
+                            node_label  = local_labels.at(h*local_width+w);
+                            other_label = local_labels.at(h*local_width+(w+1));
+                            smooth_e += smoothcost.at(node_label*num_lbl+other_label);
+                            other_label = local_labels.at(((h+1)*local_width)+w);
+                            smooth_e += smoothcost.at(node_label*num_lbl+other_label);
+                        }
+                    }
+                    node_label  = local_labels.at((local_height-1)*local_width+(local_width-1));
+                    other_label = local_labels.at((local_height-1)*local_width+(local_width-2));
                     smooth_e += smoothcost.at(node_label*num_lbl+other_label);
-                    other_label = local_labels.at(((h+1)*local_width)+w);
+                    node_label  = local_labels.at((local_height-1)*local_width+(local_width-1));
+                    other_label = local_labels.at((local_height-2)*local_width+(local_width-1));
                     smooth_e += smoothcost.at(node_label*num_lbl+other_label);
+                    //cout << "smooth_e = " << smooth_e << endl;
+                    smooth_e = smooth_e * lambda;
+                    //cout << "smooth_e = " << smooth_e << endl;
+
+                    //cout << "smooth_e = " << smooth_e << endl;
+                    //cout << "total_e = " << data_e + smooth_e << endl;
+
                 }
+                cout << endl;
+                cout << s_h << endl;
+                cout << "Shift: " << (s + 1) << "/" << shift << endl;
+
+                // Report Gaussian parameters
+                cout << "Label count = [" << label_count[0] << "," << label_count[1] << "]" << endl;
+                cout << "New mean = [" << new_mean[0] << "," << new_mean[1] << "]" << endl;
+                cout << "New variance = [" << new_vari[0] << "," << new_vari[1] << "]" << endl;
+
+                // Report energies
+                cout << fixed;
+                cout << "data_e\t\t" << "smooth_e\t" << "total_e\t\t" << endl;
+                cout << data_e << "\t";
+                cout << smooth_e << "\t";
+                cout << data_e + smooth_e << "\t" << endl;
+
+                // Updating the global_labels using new local_labels
+                Copy2DVector_(local_labels, local_width, local_height, s_w, s_h, width, height, global_labels);
+
+                // Updating the shift amount in height
+                s_h = s_h + step;
+
             }
-            node_label  = local_labels.at((local_height-1)*local_width+(local_width-1));
-            other_label = local_labels.at((local_height-1)*local_width+(local_width-2));
-            smooth_e += smoothcost.at(node_label*num_lbl+other_label);
-            node_label  = local_labels.at((local_height-1)*local_width+(local_width-1));
-            other_label = local_labels.at((local_height-2)*local_width+(local_width-1));
-            smooth_e += smoothcost.at(node_label*num_lbl+other_label);
-            //cout << "smooth_e = " << smooth_e << endl;
-            smooth_e = smooth_e * lambda;
-            //cout << "smooth_e = " << smooth_e << endl;
 
-            //cout << "smooth_e = " << smooth_e << endl;
-            //cout << "total_e = " << data_e + smooth_e << endl;
+            //Dump3DVector(totalcost, local_width, local_height, num_lbl, "output/totalcosts.txt");
+            string s;
+            char buffer [100];
+            if(HW == 1) {
+                // s = "output/graph_overlap_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
+                sprintf (buffer, "output/labels_FPGA_FP/graph_overlap_%g_%g_%d_%d_%d_%d.txt", beta, lambda, em_iter, gibbs_iter, step, (run+1));
+                s = buffer;
+                //s = "output/SDR_FPGA_FP/graph_overlap_" + to_string((float)beta) + "_" + to_string((float)lambda) + "_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
+            } 
+            else if (HW == 0){
+                // s = "output/graph_overlap_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
+                sprintf (buffer, "output/labels_CPU/graph_overlap_%g_%g_%d_%d_%d_%d.txt", beta, lambda, em_iter, gibbs_iter, step, (run+1));
+                s = buffer;
+            }
+            else if(HW == 2) {
+                // s = "output/graph_overlap_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
+                sprintf (buffer, "output/labels_FPGA_FP_CN/graph_overlap_%g_%g_%d_%d_%d_%d.txt", beta, lambda, em_iter, gibbs_iter, step, (run+1));
+                s = buffer;
+                //s = "output/SDR_FPGA_FP/graph_overlap_" + to_string((float)beta) + "_" + to_string((float)lambda) + "_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
+            } 
+    
+            //s = "output/new_labels.txt";
 
+            Dump2DVector(global_labels, width, height, s.c_str());
+            //Dump2DVectorTranspose(global_labels, width, height, "output/new_labels_t.txt");
         }
-        cout << endl;
-        cout << s_h << endl;
-        cout << "Shift: " << (s + 1) << "/" << shift << endl;
-
-        // Report Gaussian parameters
-        cout << "Label count = [" << label_count[0] << "," << label_count[1] << "]" << endl;
-        cout << "New mean = [" << new_mean[0] << "," << new_mean[1] << "]" << endl;
-        cout << "New variance = [" << new_vari[0] << "," << new_vari[1] << "]" << endl;
-
-        // Report energies
-        cout << fixed;
-        cout << "data_e\t\t" << "smooth_e\t" << "total_e\t\t" << endl;
-        cout << data_e << "\t";
-        cout << smooth_e << "\t";
-        cout << data_e + smooth_e << "\t" << endl;
-
-        // Updating the global_labels using new local_labels
-        Copy2DVector_(local_labels, local_width, local_height, s_w, s_h, width, height, global_labels);
-
-        // Updating the shift amount in height
-        s_h = s_h + step;
-
-    }
-
-    //Dump3DVector(totalcost, local_width, local_height, num_lbl, "output/totalcosts.txt");
-    string s;
-    char buffer [100];
-	if(HW == 1) {
-		// s = "output/graph_overlap_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
-		sprintf (buffer, "output/labels_FPGA_FP/graph_overlap_%g_%g_%d_%d_%d_%d.txt", beta, lambda, em_iter, gibbs_iter, step, (run+1));
-		s = buffer;
-		//s = "output/SDR_FPGA_FP/graph_overlap_" + to_string((float)beta) + "_" + to_string((float)lambda) + "_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
-	} 
-	else if (HW == 0){
-		// s = "output/graph_overlap_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
-        sprintf (buffer, "output/labels_CPU/graph_overlap_%g_%g_%d_%d_%d_%d.txt", beta, lambda, em_iter, gibbs_iter, step, (run+1));
-        s = buffer;
-	}
-    else if(HW == 2) {
-        // s = "output/graph_overlap_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
-        sprintf (buffer, "output/labels_FPGA_FP_CN/graph_overlap_%g_%g_%d_%d_%d_%d.txt", beta, lambda, em_iter, gibbs_iter, step, (run+1));
-        s = buffer;
-        //s = "output/SDR_FPGA_FP/graph_overlap_" + to_string((float)beta) + "_" + to_string((float)lambda) + "_" + to_string((int)em_iter) + "_" + to_string((int)gibbs_iter) + "_" + to_string((int)step) + "_" + to_string((int)(run+1)) + ".txt";
-    } 
-   
-    //s = "output/new_labels.txt";
-
-    Dump2DVector(global_labels, width, height, s.c_str());
-    //Dump2DVectorTranspose(global_labels, width, height, "output/new_labels_t.txt");
-    }
 
     // Gibbs Iter Loop
     }
